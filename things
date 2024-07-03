@@ -1,0 +1,9 @@
+docker system prune -a --volumes
+docker volume prune --all
+
+export PATH=$PATH:/usr/bin/go/bin
+
+#
+client id     Xvu2c0baKdRnNQoJ2YM0uhEXHhRZhf6U5mjucfog
+client secret bATdv33lqDRHSsunlWUsaxWOC8Iq5XUMlGINd8Eb8MnBFLQjcS2TEBv9thgdEhspqM7zLiEsxiZm09dA7stdmyaVwaitbzyDMFaS1AgLLYgrdsQN649G9fceDrzZgg9f
+#

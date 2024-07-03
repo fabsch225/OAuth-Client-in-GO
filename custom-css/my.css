@@ -1,0 +1,34 @@
+.pf-c-button {
+    padding: 15px 30px !important;
+    font-size: 18px !important;
+    margin: 10px !important;
+    border-radius: 25px !important;
+    transition: background-color 0.3s , transform 0.3s !important;
+    background-color: #28a745 !important;
+    color: white !important;
+    align-self: center !important;
+    width: 90% !important;
+}
+
+.pf-c-button:hover {
+    background-color: #218838 !important;
+    color: black !important;
+    transform: scale(1.05) !important;
+}
+
+.pf-c-pf-c-form__group pf-m-action style-scope ak-stage-password {
+    display: flex !important;
+    justify-content: center !important;
+}
+
+.pf-c-login__main {
+    padding: 15px 30px !important;
+    font-size: 18px !important;
+    margin: 10px !important;
+    border-radius: 25px !important;
+    transition: background-color 0.3s , transform 0.3s !important;
+}
+
+.pf-c-login__main-footer-band {
+    border-radius: 25px !important;
+}
