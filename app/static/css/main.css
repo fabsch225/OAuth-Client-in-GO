@@ -1,0 +1,46 @@
+body {
+    background-image: url('/img/wp9764093.jpg');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+  
+  .button-container {
+    text-align: center;
+  }
+  
+  .btn-custom {
+    padding: 15px 30px;
+    font-size: 18px;
+    margin: 10px;
+    border-radius: 25px;
+    transition: background-color 0.3s, transform 0.3s;
+  }
+  
+  .btn-custom-login {
+    background-color: #28a745;
+    color: white;
+  }
+  
+  .btn-custom-login:hover {
+    background-color: #218838;
+    color: black;
+    transform: scale(1.05);
+  }
+  
+  .btn-custom-register {
+    background-color: #28a745;
+    color: white;
+  }
+  
+  .btn-custom-register:hover {
+    background-color: #218838;
+    color: black;
+    transform: scale(1.05);
+  }
+  

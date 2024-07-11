@@ -1,0 +1,28 @@
+services:
+  notes:
+    build:
+      dockerfile: ./notes.Dockerfile
+    ports:
+      - "8089:8089"
+    networks:
+      - notes
+    environment:
+      PORT: 8089
+      POSTGRES_PORT: 5432
+  postgres:
+    image: postgres:latest
+    volumes:
+      - ./init-db:/docker-entrypoint-initdb.d
+      - ./data/postgres/pgdata:/var/lib/postgresql/data/pgdata
+    networks:
+      - notes
+    environment:
+      POSTGRES_USER: "fabian"
+      POSTGRES_PASSWORD: "123"
+      POSTGRES_DB: "postgres"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    
+networks:
+  notes:
