@@ -4,6 +4,12 @@ docker volume prune --all
 export PATH=$PATH:/usr/bin/go/bin
 
 #
-client id     Xvu2c0baKdRnNQoJ2YM0uhEXHhRZhf6U5mjucfog
-client secret bATdv33lqDRHSsunlWUsaxWOC8Iq5XUMlGINd8Eb8MnBFLQjcS2TEBv9thgdEhspqM7zLiEsxiZm09dA7stdmyaVwaitbzyDMFaS1AgLLYgrdsQN649G9fceDrzZgg9f
+client id     HQrsYMEXnEksFCMQ1klvt85RIT3Jt8KHSd5uArn0
+client secret DGChUUu9f82vhhfaBmEA1KrSPFYwuopTXktkvuOhnuyJt1yyXtjVe8bX9ondAylY0eavD5NxNYQ5z1tPt3pV6k5EAsq3t7x6gYzUT326Ktt8aZfRX92NAOFlGBpGOdOj
 #
+
+manual setup in Authentik UI
+1. Set Up Applikation
+2. Set Up OAuth Provider (use confidential client for testing, then switch to pkce)
+3. Set Up Registration Flow
+4. Set Up custom Scope
