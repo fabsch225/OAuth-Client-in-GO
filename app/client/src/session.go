@@ -13,11 +13,12 @@ func (store *SessionTokenStore) AddToken(token OAuthToken) (string, string) {
     csrfToken := generateCSRFTokenSource()
 
 	entry := SessionTokenData {
-		CSRFToken: 		  CSRFToken {
-			Source: csrfToken,
-						  },
-		Token:            token,
-		SessionExpiresAt: time.Now().Add(store.ttl),
+		CSRFToken: 		      CSRFToken {
+			                      Source: csrfToken,
+						      },
+		Token:                token,
+        AccessTokenExpiresAt: time.Now().Add(250 * time.Second),
+		SessionExpiresAt:     time.Now().Add(store.ttl),
 	}
     store.tokens[sessionToken] = entry
 
@@ -30,6 +31,14 @@ func (store *SessionTokenStore) GetToken(id string) (*OAuthToken, bool) {
     defer store.mu.RUnlock()
     entry, exists := store.tokens[id]
     return &entry.Token, exists
+}
+
+// GetToken retrieves an access token from the store by ID.
+func (store *SessionTokenStore) GetData(id string) (*SessionTokenData, bool) {
+    store.mu.RLock()
+    defer store.mu.RUnlock()
+    entry, exists := store.tokens[id]
+    return &entry, exists
 }
 
 // RemoveToken removes an access token from the store by the SessionToken.

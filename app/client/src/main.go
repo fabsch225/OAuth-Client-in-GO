@@ -20,7 +20,7 @@ var (
 	CertFile         string = "../certs/server.crt"
 	KeyFile          string = "../certs/server.key"
 	CaCertFile       string = "../certs/certificate.crt"
-	ResourceServer   string = "http://37.27.87.77:8080/notes"
+	ResourceServer   string = "https://37.27.87.77:8080/notes"
 )
 
 var Sessions      SessionTokenStore   = *NewSessionTokenStore()

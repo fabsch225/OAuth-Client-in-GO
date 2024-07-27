@@ -7,7 +7,23 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"time"
+	"log"
 )
+
+func refreshAccessTokenIfPossible(sessionData *SessionTokenData) error {
+	if time.Now().After(sessionData.AccessTokenExpiresAt) {
+		log.Println("Trying to use a Refresh Token")
+		newToken, err := consumeRefreshToken(sessionData.Token.RefreshToken)
+		if err != nil {
+			return err
+		}
+		sessionData.Token = *newToken
+		sessionData.AccessTokenExpiresAt = time.Now().Add(250 * time.Second)
+		log.Println("Refresh Succsesful")
+	}
+	return nil
+}
 
 func consumeRefreshToken(refreshToken string) (*OAuthToken, error) {
 	data := url.Values{}

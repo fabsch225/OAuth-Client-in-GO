@@ -7,16 +7,10 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"strings"
+	"crypto/rsa"
 
 	_ "github.com/lib/pq"
-)
-
-var (
-	DbUser     string = "notes_user"
-	DbPassword string = "123"
-	DbName     string = "postgres"
-	DbHost     string = "localhost"
-	DbPort     string = "5432"
 )
 
 type Note struct {
@@ -26,26 +20,36 @@ type Note struct {
 	Owner string    `json:"owner"`
 }
 
-var Db *sql.DB
+var Db        *sql.DB
+var Client    http.Client
+var PublicKey *rsa.PublicKey
 
-func initDB() {
-	var err error
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		DbHost, DbPort, DbUser, DbPassword, DbName)
-	Db, err = sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = Db.Ping()
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Successfully connected to database!")
-}
+var (
+	DbUser           string = "notes_user"
+	DbPassword       string = "123"
+	DbName           string = "postgres"
+	DbHost           string = "localhost"
+	DbPort           string = "5432"
+	ClientId         string = "HQrsYMEXnEksFCMQ1klvt85RIT3Jt8KHSd5uArn0"
+	CertFile         string = "./certs/server.crt"
+	KeyFile          string = "./certs/server.key"
+	CaCertFile       string = "./certs/certificate.crt"
+	ResourceId       string = "ytAwQxEH4lRu48Ae9JjI2epogcJLhSfP" //if the notes-scope is applied, this will be the value in the jwt
+)
 
 func getNotes(w http.ResponseWriter, r *http.Request) {
-	rows, err := Db.Query("SELECT date, text, done, owner FROM notes_user.notes")
+	authHeader := r.Header.Get("Authorization")
+    if authHeader == "" {
+        http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+        return
+    }
+	accessToken := strings.TrimPrefix(authHeader, "Bearer ")
+	owner, valid := validateJwt(accessToken)
+	if !valid {
+		http.Error(w, "Token invalid", http.StatusUnauthorized)
+	}
+
+	rows, err := Db.Query("SELECT date, text, done, owner FROM notes_user.notes WHERE owner = $1", owner)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -71,12 +75,24 @@ func getNotes(w http.ResponseWriter, r *http.Request) {
 }
 
 func createNote(w http.ResponseWriter, r *http.Request) {
+	authHeader := r.Header.Get("Authorization")
+    if authHeader == "" {
+        http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+        return
+    }
+	accessToken := strings.TrimPrefix(authHeader, "Bearer ")
+	owner, valid := validateJwt(accessToken)
+	if !valid {
+		http.Error(w, "Token invalid", http.StatusUnauthorized)
+	}
+
+
 	var note Note
 	if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
+	note.Owner = owner
 	doneByte := 0
 	if note.Done {
 		doneByte = 1
@@ -92,13 +108,24 @@ func createNote(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteNote(w http.ResponseWriter, r *http.Request) {
+	authHeader := r.Header.Get("Authorization")
+    if authHeader == "" {
+        http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+        return
+    }
+	accessToken := strings.TrimPrefix(authHeader, "Bearer ")
+	owner, valid := validateJwt(accessToken)
+	if !valid {
+		http.Error(w, "Token invalid", http.StatusUnauthorized)
+	}
+
 	text := r.URL.Query().Get("text")
 	if text == "" {
 		http.Error(w, "Missing 'text' query parameter", http.StatusBadRequest)
 		return
 	}
 
-	_, err := Db.Exec("DELETE FROM notes_user.notes WHERE text = $1", text)
+	_, err := Db.Exec("DELETE FROM notes_user.notes WHERE text = $1 AND owner = $2", text, owner)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -108,7 +135,13 @@ func deleteNote(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	var err error
+	PublicKey, err = LoadPublicKey(CaCertFile)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 	initDB()
+	InitHTTPClient()
 	defer Db.Close()
 
 	http.HandleFunc("/notes", func(w http.ResponseWriter, r *http.Request) {
@@ -129,6 +162,11 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
+
+	server := &http.Server{
+        Addr: ":8080",
+    }
+
 	fmt.Println("Api listening on localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(server.ListenAndServeTLS("./certs/server.crt", "./certs/server.key"))
 }

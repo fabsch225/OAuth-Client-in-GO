@@ -151,23 +151,6 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//test userinfo
-	req, _ = http.NewRequest("GET", UserInfoUrl, nil)
-	req.Header.Set("Authorization", "Bearer "+tokenResponse.AccessToken)
-	resp, err = Client.Do(req)
-	if err != nil {
-		log.Printf("failed getting user info: %s\n", err.Error())
-		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
-		return
-	}
-	defer resp.Body.Close()
-	//test introspection
-	info, err := IntrospectToken(tokenResponse.AccessToken)
-	if (err != nil) {
-		log.Printf("failed introspection: %s\n", err.Error())
-	}
-	fmt.Println(info)
-	
 	sessionToken, _ := Sessions.AddToken(tokenResponse)
 	
 	http.SetCookie(w, &http.Cookie{

@@ -36,9 +36,10 @@ type CSRFToken struct {
 }
 
 type SessionTokenData struct {
-	Token            OAuthToken
-	CSRFToken		 CSRFToken
-	SessionExpiresAt time.Time
+	Token                OAuthToken
+	CSRFToken		     CSRFToken
+	AccessTokenExpiresAt time.Time
+	SessionExpiresAt     time.Time
 }
 
 type SessionTokenStore struct {
@@ -48,9 +49,9 @@ type SessionTokenStore struct {
 }
 
 func NewSessionTokenStore() *SessionTokenStore {
-	//ttl is left 0 -> there is 0 tolerance for late sessions
     return &SessionTokenStore{
         tokens: make(map[string]SessionTokenData),
+		ttl: time.Minute * 10,
     }
 }
 
@@ -82,14 +83,16 @@ type ExchangeParams struct {
 }
 
 type Note struct {
-	Date  time.Time `json:"date"`
-	Text  string    `json:"text"`
-	Done  bool      `json:"done"`
-	Owner string    `json:"owner"`
+	Date      time.Time `json:"date"`
+	Text      string    `json:"text"`
+	Done      bool      `json:"done"`
+	Owner     string    `json:"owner"`
+	CSRFToken string
 }
 
 type NotesPage struct {
 	Notes []Note
+	CSRFToken string
 }
 
 

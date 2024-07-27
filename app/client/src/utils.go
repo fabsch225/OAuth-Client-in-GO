@@ -67,8 +67,14 @@ func InitHTTPClient() {
 		log.Fatalf("Failed to read CA cert: %v", err)
 	}
 
+	myCaCert, err := ioutil.ReadFile(CertFile)
+	if err != nil {
+		log.Fatalf("Failed to read CA cert: %v", err)
+	}
+
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(caCert)
+	caCertPool.AppendCertsFromPEM(myCaCert)
 
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{cert},
