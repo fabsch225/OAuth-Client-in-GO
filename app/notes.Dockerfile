@@ -1,6 +1,7 @@
 FROM golang:1.20
 WORKDIR /app
 COPY ./src ./src
+COPY ./certs ./certs
 COPY ./static ./static
 COPY ./templates ./templates
 WORKDIR /app/src

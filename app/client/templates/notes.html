@@ -1,0 +1,36 @@
+{{ define "content" }}
+<h2>Notes</h2>
+
+<form id="noteForm" action="/notes" method="POST">
+    <div class="form-group">
+        <label for="text">Text:</label>
+        <input type="text" id="text" name="text" class="form-control" required>
+    </div>
+    <div class="form-group">
+        <label for="date">Date:</label>
+        <input type="date" id="date" name="date" class="form-control" required>
+    </div>
+    <div class="form-group">
+        <label for="done">Done:</label>
+        <select id="done" name="done" class="form-control">
+            <option value="false">No</option>
+            <option value="true">Yes</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Add Note</button>
+</form>
+
+<hr>
+
+<h3>Existing Notes</h3>
+<ul class="list-group">
+    {{ range .Notes }}
+    <li class="list-group-item">
+        <strong>{{ .Text }}</strong> - {{ .Date.Format "2006-01-02" }} - Done: {{ .Done }}
+        <a href="/notes/delete?text={{ .Text }}" class="btn btn-danger btn-sm float-right">Delete</a>
+    </li>
+    {{ else }}
+    <li class="list-group-item">No notes found.</li>
+    {{ end }}
+</ul>
+{{ end }}
