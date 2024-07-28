@@ -1,3 +1,23 @@
+// ##############################################################################################
+// Hier stehen die Datenstrukturen zur speicherung von Sessions und 
+// Login-States (https://datatracker.ietf.org/doc/html/rfc6749#section-10.12),
+// sowie Routine, die die Speicher periodisch aufräumen
+// ##############################################################################################
+
+package main
+
+import (
+    "time"
+    "log"
+    "net/url"
+    "sync"
+    "net/http"
+    "bytes"
+    "io/ioutil"
+    "fmt"
+    "encoding/json"
+)
+
 // zur Darstellung eines CSRF-Tokens
 type CSRFToken struct {
 	Source string
@@ -140,10 +160,10 @@ func NewLoginStateStore(ttl time.Duration) *LoginStateStore {
     }
 }
 
-/* 
-AddState fügt einen neuen Zustand (state) mit einem Code-Verifier in den Store hinzu.
-Diese Methode wird verwendet, um OAuth2-Zustände während des Login-Prozesses zu speichern.
-*/
+
+// AddState fügt einen neuen Zustand (state) mit einem Code-Verifier in den Store hinzu.
+// Diese Methode wird verwendet, um OAuth2-Zustände während des Login-Prozesses zu speichern.
+
 func (s *LoginStateStore) AddState(state string, codeVerifier string) {
     s.mu.Lock()
     defer s.mu.Unlock()
@@ -153,10 +173,10 @@ func (s *LoginStateStore) AddState(state string, codeVerifier string) {
 	}
 }
 
-/* 
-Retrieve entfernt einen Zustand (state) aus dem Store und gibt den zugehörigen Code-Verifier zurück.
-Diese Methode wird verwendet, um den Code-Verifier nach Abschluss des OAuth2-Authentifizierungsprozesses abzurufen.
-*/
+
+// Retrieve entfernt einen Zustand (state) aus dem Store und gibt den zugehörigen Code-Verifier zurück.
+// Diese Methode wird verwendet, um den Code-Verifier nach Abschluss des OAuth2-Authentifizierungsprozesses abzurufen.
+
 func (s *LoginStateStore) Retrieve(state string) string {
     s.mu.Lock()
     defer s.mu.Unlock()
@@ -169,10 +189,10 @@ func (s *LoginStateStore) Retrieve(state string) string {
 	return codeVerifier
 }
 
-/* 
-Contains überprüft, ob ein Zustand (state) im Store existiert und nicht abgelaufen ist.
-Diese Methode wird verwendet, um sicherzustellen, dass ein Zustand während des OAuth2-Authentifizierungsprozesses gültig ist.
-*/
+
+// Contains überprüft, ob ein Zustand (state) im Store existiert und nicht abgelaufen ist.
+// Diese Methode wird verwendet, um sicherzustellen, dass ein Zustand während des OAuth2-Authentifizierungsprozesses gültig ist.
+
 func (s *LoginStateStore) Contains(state string) bool {
     s.mu.RLock()
     defer s.mu.RUnlock()
@@ -229,12 +249,13 @@ func (sessionData *SessionTokenData) refreshAccessTokenIfPossible() error {
 // Ein POST-Request wird an den Token-Endpunkt gesendet, wobei das Refresh-Token, der Client-Id, der Client-Secret und die Redirect-URI übermittelt werden.
 // Wenn die Antwort erfolgreich ist, wird der neue Access-Token zurückgegeben, andernfalls wird ein Fehler ausgegeben.
 func consumeRefreshToken(refreshToken string) (*OAuthToken, error) {
+    // Baut die Anfrage
 	data := url.Values{}
 	data.Set("grant_type", "refresh_token")
 	data.Set("refresh_token", refreshToken)
 	data.Set("client_id", ClientId)
 	data.Set("client_secret", ClientSecret)
-	data.Set("redirect_uri", RedirectUrl)
+	//data.Set("redirect_uri", RedirectUrl)
 
 	req, err := http.NewRequest("POST", TokenUrl, bytes.NewBufferString(data.Encode()))
 	if err != nil {
@@ -242,6 +263,7 @@ func consumeRefreshToken(refreshToken string) (*OAuthToken, error) {
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
+    // Sendet die Anfrage mit dem TLS-CLient
 	resp, err := Client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("making request: %v", err)
@@ -259,4 +281,37 @@ func consumeRefreshToken(refreshToken string) (*OAuthToken, error) {
 		return nil, fmt.Errorf("decoding response: %v", err)
 	}
 	return &tokenResp, nil
+}
+
+// ##############################################################################################
+// Hier werden Aufräum-Routinen gestartet, die Sessions und Login Versuche Löschen, wenn sie zu alt sind
+// ##############################################################################################
+
+// routinesInit startet zwei Hintergrundroutinen (Goroutinen), die periodisch Aufräumarbeiten durchführen.
+// Diese Routinen sorgen dafür, dass abgelaufene Logins und SessionTokens regelmäßig entfernt werden.
+
+func routinesInit() {
+	go loginStoreCleanupRoutine()
+	go sessionStoreCleanupRoutine()
+}
+
+
+// loginStoreCleanupRoutine führt alle 5 Minuten eine Bereinigung des LoginStateStore durch.
+// Diese Routine sorgt dafür, dass abgelaufene Logins aus dem Speicher entfernt werden.
+
+func loginStoreCleanupRoutine() {
+	for {
+		time.Sleep(5 * time.Minute)
+		LoginStates.CleanUp()
+	}
+}
+
+// sessionStoreCleanupRoutine führt alle 5 Minuten eine Bereinigung des SessionTokenStore durch.
+// Diese Routine sorgt dafür, dass abgelaufene SessionTokens aus dem Speicher entfernt werden.
+
+func sessionStoreCleanupRoutine() {
+	for {
+		time.Sleep(5 * time.Minute)
+		Sessions.CleanUp()
+	}
 }

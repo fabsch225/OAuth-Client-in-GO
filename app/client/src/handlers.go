@@ -8,21 +8,23 @@ import (
 	"time"
 	"net/url"
 	"strings"
+	"html/template"
 )
 
-/* 
-handleLogin behandelt den OAuth2-Login-Prozess.
-Es generiert einen Code-Verifier und einen State, speichert diesen im LoginStateStore, 
-und leitet den Benutzer zur OAuth2-Authorisierungs-URL weiter.
+// ##############################################################################################
+// handleLogin behandelt den OAuth2-Login-Prozess.
+// Es generiert einen Code-Verifier und einen State, speichert diesen im LoginStateStore, 
+// und leitet den Benutzer zur OAuth2-Authorisierungs-URL weiter.
 
-Konkret wird "Proof Key for Code Exchange" (PKCE) nach https://datatracker.ietf.org/doc/html/rfc7636#section-4
-imlpementiert. Da es sich nicht um einen Öffentlichen Client handelt ist das nach OAuth nicht notwendig,
-wird aber von Authentik verlangt.
+// Konkret wird "Proof Key for Code Exchange" (PKCE) nach https://datatracker.ietf.org/doc/html/rfc7636#section-4
+// imlpementiert. Da es sich nicht um einen Öffentlichen Client handelt ist das nach OAuth nicht notwendig,
+// wird aber von Authentik verlangt.
 
-Um CSRF Angriffe zu verhindern, wird nach https://datatracker.ietf.org/doc/html/rfc6749#section-10.12 ein state Parameter
-mitgeliefert. Später Authentifiziert sich der Browser Ebenfalls einem Session-Cookie und CSRF-Token der in das
-Formular eingebettet ist. Das hat aber nichts mit dem hier zu tun.
-*/
+// Um CSRF Angriffe zu verhindern, wird nach https://datatracker.ietf.org/doc/html/rfc6749#section-10.12 ein state Parameter
+// mitgeliefert. Später Authentifiziert sich der Browser ebenfalls einem Session-Cookie und CSRF-Token der in das
+// Formular eingebettet ist. Das hat aber nichts mit dem hier zu tun.
+// ##############################################################################################
+
 func handleLogin(w http.ResponseWriter, r *http.Request) {
 	codeVerifier := generateCodeVerifier()
 	codeChallenge := generateCodeChallenge(codeVerifier)
@@ -46,10 +48,11 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, authUrlWithParams, http.StatusTemporaryRedirect)
 }
 
-/* 
-handleCallback behandelt den Rückruf von der OAuth2-Authentifizierungs-URL.
-Es überprüft den Zustand, fordert ein Token vom Token-Endpunkt an, und speichert das Token in einer Sitzung.
-*/
+// ##############################################################################################
+// handleCallback behandelt den Rückruf von der OAuth2-Authentifizierungs-URL.
+// Es überprüft den Zustand, fordert ein Token vom Token-Endpunkt an, und speichert das Token in einer Sitzung.
+// ##############################################################################################
+
 func handleCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.FormValue("state")
 	if !LoginStates.Contains(state) {
@@ -79,6 +82,7 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
+	// Sendet die Anfrage mit dem TLS-CLient
 	resp, err := Client.Do(req)
 	if err != nil {
 		log.Printf("Error sending request: %v\n", err)
@@ -107,8 +111,10 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//Eine neue Session wird registriert
 	sessionToken, _ := Sessions.AddToken(tokenResponse)
 	
+	//den Sessiontoken als Cookie setzen
 	http.SetCookie(w, &http.Cookie{
         Name:     "GoNotesSessionToken",
         Value:    sessionToken,
@@ -119,17 +125,21 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
         Secure:   true,
     })
 
+	//zurück zur Anwendung, nun mit der angemeldeten Session
 	http.Redirect(w, r, ApplicationUrl, http.StatusFound)
 }
+
+// ##############################################################################################
 // handleLogout behandelt die Abmeldung des Benutzers.
-// Es prüft die Gültigkeit des Sitzungstokens, widerruft das Token und leitet den Benutzer zur Abmeldeseite weiter.
+// Es prüft die Gültigkeit des Sessiontoken, widerruft das Token und leitet den Benutzer zur Abmeldeseite weiter.
+// ##############################################################################################
 
 func handleLogout(w http.ResponseWriter, r *http.Request) {
 	// Liest das Sitzungscookie
 	sessionCookie, err := r.Cookie("GoNotesSessionToken")
     if err != nil {
         if err == http.ErrNoCookie {
-            // Wenn kein Sitzungscookie vorhanden ist, wird zur Login-Seite umgeleitet
+            // Wenn kein Sessiontoken vorhanden ist, wird zur Login-Seite umgeleitet
 			http.Redirect(w, r, "oa/login", http.StatusTemporaryRedirect)
         }
         // Bei anderen Fehlern wird ein Bad Request Status zurückgegeben
@@ -147,26 +157,28 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 	csrfToken := sessionData.CSRFToken.Source
 	csrfTokenClaim := r.FormValue("csrf_token")
 
-	// Überprüft das CSRF-Token, um CSRF-Angriffe zu verhindern
+	// Überprüft das CSRF-Token
 	if csrfToken != csrfTokenClaim {
 		http.Error(w, "possible CSRF Attack detected", http.StatusUnauthorized)
 		return
 	}
 
-	// Widerruft das Token
+	// Widerruft das Refresh-Token
 	err = revokeToken(token.RefreshToken)
 	if err != nil {
 		http.Error(w, "Token Revokation failed", http.StatusInternalServerError)
 		return
 	}
 
-	// Entfernt das Sitzungstoken und leitet zur Abmeldeseite weiter
+	// Entfernt das Sitzungstoken und leitet zur Abmeldeseite von Authentik weiter
 	Sessions.RemoveToken(sessionCookie.Value)
 	http.Redirect(w, r, LogoutUrl, http.StatusSeeOther)
 }
 
-
-// revokeToken widerruft das gegebene Token, indem eine HTTP-POST-Anfrage an den Token-Widerrufs-Endpunkt gesendet wird.
+// ##############################################################################################
+// revokeToken widerruft das gegebene Token, 
+// indem eine HTTP-POST-Anfrage an den Token-Widerrufs-Endpunkt gesendet wird.
+// ##############################################################################################
 
 func revokeToken(token string) error {
 	params := url.Values{}
@@ -184,7 +196,7 @@ func revokeToken(token string) error {
 	// Setzt den entsprechenden Header
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	// Sendet die Anfrage
+	// Sendet die Anfrage mit dem TLS-CLient
 	_, err = Client.Do(req)
 	if err != nil {
 		log.Printf("Error sending request: %v\n", err)
@@ -207,10 +219,11 @@ func revokeToken(token string) error {
 // Konkret werden CSRF Tokens in das Formular eingebettet, damit man keine Operationen ausführen kann,
 // indem das Opfer einen malicious link klickt, während die Seite in einem anderen Tab offen ist (und die Session aktiv).
 
-
+// ##############################################################################################
 // notesHandler verarbeitet Anfragen an den /notes-Endpunkt.
 // Es unterstützt sowohl GET- als auch POST-Methoden und implementiert die entsprechende Logik 
 // für das Abrufen und Erstellen von Notizen.
+// ##############################################################################################
 
 func notesHandler(w http.ResponseWriter, r *http.Request) {
 	sessionCookie, err := r.Cookie("GoNotesSessionToken")
@@ -314,9 +327,10 @@ func parseDate(date string) (time.Time, error) {
 	return time.Parse("2006-01-02", date)
 }
 
-
+// ##############################################################################################
 // deleteHandler verarbeitet Anfragen an den /notes/delete-Endpunkt.
 // Es unterstützt die DELETE-Methode und implementiert die Logik zum Löschen einer Notiz anhand ihres Textinhalts.
+// ##############################################################################################
 
 func deleteHandler(w http.ResponseWriter, r *http.Request) {
 	sessionCookie, err := r.Cookie("GoNotesSessionToken")

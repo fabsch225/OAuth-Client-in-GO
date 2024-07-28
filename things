@@ -1,6 +1,8 @@
 docker system prune -a --volumes
 docker volume prune --all
 
+docker builder prune
+
 export PATH=$PATH:/usr/bin/go/bin
 
 #

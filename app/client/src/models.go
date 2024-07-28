@@ -1,9 +1,6 @@
 package main
 
-import (
-	"time"
-	"sync"
-)
+import "time"
 
 // zur Darstellung einer Notiz. Enthält das Erstellungsdatum, den Text, einen Boolean, 
 // der anzeigt, ob die Notiz erledigt ist, und den Besitzer der Notiz.

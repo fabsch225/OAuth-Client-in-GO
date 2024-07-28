@@ -1,3 +1,8 @@
+// ##############################################################################################
+// Autor: Fabian Schuler
+// Datum: 28.07.2024
+// ##############################################################################################
+
 package main
 
 import (
@@ -5,6 +10,9 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"crypto/tls"
+	"crypto/x509"
+	"io/ioutil"
 )
 
 // zur Darstellung eines OAuth2-Tokens, das verschiedene Informationen wie Access-Token, Token-Typ, 
@@ -46,22 +54,24 @@ var (
 	// In der Menge werden die state-Parameter des authorization-Flows gespeichert
 	LoginStates LoginStateStore = *NewLoginStateStore(1 * time.Minute)
 
-	// HTTP-Client für Anfragen.
+	// HTTP-Client für Anfragen an den Resource Server und Authentik.
 	Client http.Client
 )
 
 func main() {
 	InitHTTPClient()
 
-	// Richtet den HTTP-Server ein, um statische Dateien aus dem Verzeichnis "../static" zu bedienen.
+	// Richtet den HTTPS-Server ein, um statische Dateien aus dem Verzeichnis "../static" zu bedienen.
 	// Für die login Seite und die CSS Dateien 
 	http.Handle("/", http.FileServer(http.Dir("../static")))
 
+	// Richtet die Routen für OAuth und Notizen ein
 	http.HandleFunc("/oa/login", handleLogin)
 	http.HandleFunc("/oa/callback", handleCallback)
 	http.HandleFunc("/oa/logout", handleLogout)
 	http.HandleFunc("/notes", notesHandler)
 	http.HandleFunc("/notes/delete", deleteHandler)
+	
 	
 	server := &http.Server{
 		Addr: ":8089",
@@ -72,4 +82,42 @@ func main() {
 	// Startet den HTTPS-Server und verwendet die angegebenen Zertifikats- und Schlüsseldateien.
 	// Falls ein Fehler auftritt, wird dieser protokolliert und die Anwendung beendet.
 	log.Fatal(server.ListenAndServeTLS(CertFile, KeyFile))
+}
+
+
+// Initialisiert den HTTP-Client mit TLS-Konfiguration.
+// Damit werden später (Rück)Anfragen and den Resource Server und an Authentik gesendet
+func InitHTTPClient() {
+	// Lädt die Zertifikate und erstellt einen TLS-konfigurierten Transport für den Client.
+	cert, err := tls.LoadX509KeyPair(CertFile, KeyFile)
+	if err != nil {
+		log.Fatalf("Failed to load key pair: %v", err)
+	}
+
+	caCert, err := ioutil.ReadFile(CaCertFile)
+	if err != nil {
+		log.Fatalf("Failed to read CA cert: %v", err)
+	}
+
+	myCaCert, err := ioutil.ReadFile(CertFile)
+	if err != nil {
+		log.Fatalf("Failed to read CA cert: %v", err)
+	}
+
+	//Das Zertifikat von Authentik und das des Resource Servers werden geladen
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+	caCertPool.AppendCertsFromPEM(myCaCert)
+
+	tlsConfig := &tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		RootCAs:            caCertPool,
+
+		// Authentik benutzt manchmal trotzdem ein anderes Zertifikat, was zu einem Fehler führt:
+		// ...doesn't contain any IP SANs. Deswegen hier eine potentielle Sicherheitslücke
+		InsecureSkipVerify: true,
+	}
+
+	transport := &http.Transport{TLSClientConfig: tlsConfig}
+	Client = http.Client{Transport: transport} 
 }
