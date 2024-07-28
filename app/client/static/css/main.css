@@ -8,39 +8,103 @@ body {
     align-items: center;
     height: 100vh;
     margin: 0;
-  }
-  
-  .button-container {
+}
+
+.navbar {
+  margin-bottom: 20px;
+}
+
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.navbar-custom {
+  position: fixed;
+  top: 0px;
+  right: 0px;
+}
+
+.content-wrapper {
+  width: 80%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.page-title, .page-subtitle {
     text-align: center;
-  }
-  
-  .btn-custom {
+    color: white;
+}
+
+.form-container, .notes-container {
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    margin-bottom: 20px;
+}
+
+.note-form {
+    background-color: transparent;
+    padding: 0;
+}
+
+.note-list {
+    padding: 0;
+}
+
+.note-item {
+    margin: 10px 0;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 5px;
+}
+
+.delete-form {
+    display: inline;
+}
+
+.button-container {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.btn-custom {
     padding: 15px 30px;
-    font-size: 18px;
+    font-size: 20px;
     margin: 10px;
     border-radius: 25px;
     transition: background-color 0.3s, transform 0.3s;
-  }
-  
-  .btn-custom-login {
+}
+
+.btn-custom-sm {
+  padding: 7.5px 15px;
+  font-size: 20px;
+  margin: 5px;
+  border-radius: 12.5px;
+  transition: background-color 0.3s, transform 0.3s;
+  background-color: #ff0000 !important;
+}
+
+.btn-custom-login {
     background-color: #28a745;
     color: white;
-  }
-  
-  .btn-custom-login:hover {
+}
+
+.btn-custom-login:hover {
     background-color: #218838;
     color: black;
     transform: scale(1.05);
-  }
-  
-  .btn-custom-register {
+}
+
+.btn-custom-register {
     background-color: #28a745;
     color: white;
-  }
-  
-  .btn-custom-register:hover {
+}
+
+.btn-custom-register:hover {
     background-color: #218838;
     color: black;
     transform: scale(1.05);
-  }
-  
+}

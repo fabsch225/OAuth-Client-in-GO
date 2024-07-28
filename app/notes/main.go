@@ -28,7 +28,7 @@ var (
 	DbUser           string = "notes_user"
 	DbPassword       string = "123"
 	DbName           string = "postgres"
-	DbHost           string = "localhost"
+	DbHost           string = "postgres"
 	DbPort           string = "5432"
 	ClientId         string = "HQrsYMEXnEksFCMQ1klvt85RIT3Jt8KHSd5uArn0"
 	CertFile         string = "./certs/server.crt"

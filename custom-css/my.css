@@ -32,3 +32,7 @@
 .pf-c-login__main-footer-band {
     border-radius: 25px !important;
 }
+
+:root {
+    --ak-flow-background: url("https://37.27.87.77:8089/img/wp9764093.jpg") !important;
+}

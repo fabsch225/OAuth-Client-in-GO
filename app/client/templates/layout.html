@@ -4,9 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notes</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/main.css">
 </head>
 <body>
+    <nav class="navbar navbar-fixed-top navbar-expand-lg navbar-custom">
+        <div class="container">
+            <div class="collapse navbar-collapse">
+                <div class="ml-auto">
+                    <form action="/oa/logout" method="POST" class="form-inline">
+                        <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}">
+                        <button type="submit" class="btn btn-custom btn-custom-login">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
     <div class="container mt-5">
         {{ block "content" . }}{{ end }}
     </div>

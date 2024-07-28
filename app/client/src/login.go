@@ -1,17 +1,27 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
-	"text/template"
 	"time"
+	"net/url"
+	"strings"
 )
-// AddState adds a new state to the store with a timestamp.
+
+// NewLoginStateStore erstellt einen neuen LoginStateStore mit einer gegebenen TTL (time-to-live).
+func NewLoginStateStore(ttl time.Duration) *LoginStateStore {
+    return &LoginStateStore{
+        states: make(map[string]LoginState),
+        ttl:    ttl,
+    }
+}
+
+/* 
+AddState fügt einen neuen Zustand (state) mit einem Code-Verifier in den Store hinzu.
+Diese Methode wird verwendet, um OAuth2-Zustände während des Login-Prozesses zu speichern.
+*/
 func (s *LoginStateStore) AddState(state string, codeVerifier string) {
     s.mu.Lock()
     defer s.mu.Unlock()
@@ -21,7 +31,10 @@ func (s *LoginStateStore) AddState(state string, codeVerifier string) {
 	}
 }
 
-// Retrieve removes a state from the store.
+/* 
+Retrieve entfernt einen Zustand (state) aus dem Store und gibt den zugehörigen Code-Verifier zurück.
+Diese Methode wird verwendet, um den Code-Verifier nach Abschluss des OAuth2-Authentifizierungsprozesses abzurufen.
+*/
 func (s *LoginStateStore) Retrieve(state string) string {
     s.mu.Lock()
     defer s.mu.Unlock()
@@ -34,7 +47,10 @@ func (s *LoginStateStore) Retrieve(state string) string {
 	return codeVerifier
 }
 
-// Contains checks if the state is in the store and has not expired.
+/* 
+Contains überprüft, ob ein Zustand (state) im Store existiert und nicht abgelaufen ist.
+Diese Methode wird verwendet, um sicherzustellen, dass ein Zustand während des OAuth2-Authentifizierungsprozesses gültig ist.
+*/
 func (s *LoginStateStore) Contains(state string) bool {
     s.mu.RLock()
     defer s.mu.RUnlock()
@@ -43,7 +59,7 @@ func (s *LoginStateStore) Contains(state string) bool {
         return false
     }
     if time.Since(loginState.CreatedAt) > s.ttl {
-        // Remove expired state
+        // Entfernt abgelaufene Zustände
         s.mu.RUnlock()
         s.mu.Lock()
         delete(s.states, state)
@@ -54,7 +70,10 @@ func (s *LoginStateStore) Contains(state string) bool {
     return true
 }
 
-// CleanUp removes expired states from the store.
+/* 
+CleanUp entfernt abgelaufene Zustände aus dem Store.
+Diese Methode wird regelmäßig aufgerufen, um sicherzustellen, dass der Store nur gültige Zustände enthält.
+*/
 func (s *LoginStateStore) CleanUp() {
     s.mu.Lock()
     defer s.mu.Unlock()
@@ -66,25 +85,46 @@ func (s *LoginStateStore) CleanUp() {
     }
 }
 
+/* 
+handleLogin behandelt den OAuth2-Login-Prozess.
+Es generiert einen Code-Verifier und einen State, speichert diesen im LoginStateStore, 
+und leitet den Benutzer zur OAuth2-Authorisierungs-URL weiter.
+
+Konkret wird "Proof Key for Code Exchange" (PKCE) nach https://datatracker.ietf.org/doc/html/rfc7636#section-4
+imlpementiert. Da es sich nicht um einen Öffentlichen Client handelt ist das nach OAuth nicht notwendig,
+wird aber von Authentik verlangt.
+
+Um CSRF Angriffe zu verhindern, wird nach https://datatracker.ietf.org/doc/html/rfc6749#section-10.12 ein state Parameter
+mitgeliefert. Später Authentifiziert sich der Browser Ebenfalls einem Session-Cookie und CSRF-Token der in das
+Formular eingebettet ist. Das hat aber nichts mit dem hier zu tun.
+*/
 func handleLogin(w http.ResponseWriter, r *http.Request) {
 	codeVerifier := generateCodeVerifier()
 	codeChallenge := generateCodeChallenge(codeVerifier)
 	state := generateState()
 	LoginStates.AddState(state, codeVerifier)
-	params := AuthParams{
-		AuthUrl:             AuthUrl,
-		ClientId:            ClientId,
-		CodeChallenge:       codeChallenge,
-		CodeChallengeMethod: "S256",
-		RedirectUri:         RedirectUrl,
-		ResponseType:        "code",
-		Scope:               "profile openid notes offline_access",
-		State:               state,
-	}
-	url2, _ := generateAuthURL(params)
-	http.Redirect(w, r, url2, http.StatusTemporaryRedirect)
+	params := url.Values{}
+	params.Add("client_id", ClientId)
+	params.Add("code_challenge", codeChallenge)
+	params.Add("code_challenge_method", "S256")
+	params.Add("redirect_uri", RedirectUrl)
+	params.Add("response_type", "code")
+
+	// Der notes Scope wird in den Access Token eingebettet: In Authentik ist eine "Resource-Id" 
+	// festgelegt: Im JWT sieht das so aus: "notes": "<Id>". Der Resource Server verifiziert das dann
+	// "offline_access" bedeutet, das Authentik einen refresh Token mitsendet
+
+	params.Add("scope", "notes offline_access")
+	params.Add("state", state)
+
+	authUrlWithParams := AuthUrl + "?" + params.Encode()
+	http.Redirect(w, r, authUrlWithParams, http.StatusTemporaryRedirect)
 }
 
+/* 
+handleCallback behandelt den Rückruf von der OAuth2-Authentifizierungs-URL.
+Es überprüft den Zustand, fordert ein Token vom Token-Endpunkt an, und speichert das Token in einer Sitzung.
+*/
 func handleCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.FormValue("state")
 	if !LoginStates.Contains(state) {
@@ -96,58 +136,49 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 
 	code := r.FormValue("code")
 
-	params := ExchangeParams{
-		ClientSecret: ClientSecret,
-		ClientID:     ClientId,
-		Code:         code,
-		CodeVerifier: codeVerifier,
-		RedirectURI:  RedirectUrl,
-	}
+	// Nutzt den Authorization Code um einen Access Token abzufragen
+	params := url.Values{}
+	params.Add("grant_type", "authorization_code")
+	params.Add("code", code)
+	params.Add("redirect_uri", RedirectUrl)
+	params.Add("client_id", ClientId)
+	params.Add("client_secret", ClientSecret)
+	params.Add("code_verifier", codeVerifier)
 
-	tmpl, err := template.New("ExchangeUrl").Parse(ExchangeBodyTemplate)
+	req, err := http.NewRequest("POST", TokenUrl, strings.NewReader(params.Encode()))
 	if err != nil {
-		log.Printf("Error parsing template: %v\n", err)
+		log.Printf("Error creating request: %v\n", err)
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
 
-	var ExchangeUrlBody bytes.Buffer
-	if err := tmpl.Execute(&ExchangeUrlBody, params); err != nil {
-		fmt.Fprintf(os.Stderr, "Error executing template: %v\n", err)
-		return
-	}
-	req, err := http.NewRequest("POST", TokenUrl, &ExchangeUrlBody)
-	if err != nil {
-		log.Printf("Error creating request: %v\n", err)
-		return
-	}
-
-	// Set the appropriate headers
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := Client.Do(req)
 	if err != nil {
 		log.Printf("Error sending request: %v\n", err)
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
 	defer resp.Body.Close()
 
-	// Read and process the response
+	// Liest und verarbeitet die Antwort
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading response body: %v\n", err)
+		log.Printf("Error reading response body: %v\n", err)
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		return
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", body)
-		return
+		log.Printf("Error: %s\n", body)
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 
-	// Parse the JSON response
+	// Parse die JSON-Antwort
 	var tokenResponse OAuthToken
 	if err := json.Unmarshal(body, &tokenResponse); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing response: %v\n", err)
+		log.Printf("Error parsing response: %v\n", err)
 		return
 	}
 
@@ -163,5 +194,5 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
         Secure:   true,
     })
 
-	http.Redirect(w, r, "https://37.27.87.77:8089/notes", http.StatusFound)
+	http.Redirect(w, r, ApplicationUrl, http.StatusFound)
 }

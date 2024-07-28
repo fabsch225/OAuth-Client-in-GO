@@ -1,14 +1,24 @@
 services:
-  notes:
+  notes: 
     build:
       dockerfile: ./notes.Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - notes
+    environment:
+      PORT: 8080
+    depends_on:
+     - postgres
+  client:
+    build:
+      dockerfile: ./client.Dockerfile
     ports:
       - "8089:8089"
     networks:
       - notes
     environment:
       PORT: 8089
-      POSTGRES_PORT: 5432
   postgres:
     image: postgres:latest
     volumes:
@@ -21,8 +31,6 @@ services:
       POSTGRES_PASSWORD: "123"
       POSTGRES_DB: "postgres"
       PGDATA: /var/lib/postgresql/data/pgdata
-    ports:
-      - "5432:5432"
     
 networks:
   notes:
