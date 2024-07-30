@@ -18,9 +18,10 @@ import (
 
 // Konkret wird "Proof Key for Code Exchange" (PKCE) nach https://datatracker.ietf.org/doc/html/rfc7636#section-4
 // imlpementiert. Da es sich nicht um einen Öffentlichen Client handelt ist das nach OAuth nicht notwendig,
-// wird aber von Authentik verlangt.
+// wird aber von Authentik verlangt. (und hat Sicherheits Vorteile)
 
-// Um CSRF Angriffe zu verhindern, wird nach https://datatracker.ietf.org/doc/html/rfc6749#section-10.12 ein state Parameter
+// Um CSRF Angriffe zu verhindern, wird nach https://datatracker.ietf.org/doc/html/rfc6749#section-10.12 und
+// https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1 ein state Parameter
 // mitgeliefert. Später Authentifiziert sich der Browser ebenfalls einem Session-Cookie und CSRF-Token der in das
 // Formular eingebettet ist. Das hat aber nichts mit dem hier zu tun.
 // ##############################################################################################
@@ -32,16 +33,21 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	LoginStates.AddState(state, codeVerifier)
 	params := url.Values{}
 	params.Add("client_id", ClientId)
+
+	// PKCE code
 	params.Add("code_challenge", codeChallenge)
 	params.Add("code_challenge_method", "S256")
+
+
 	params.Add("redirect_uri", RedirectUrl)
 	params.Add("response_type", "code")
 
 	// Der notes Scope wird in den Access Token eingebettet: In Authentik ist eine "Resource-Id" 
 	// festgelegt: Im JWT sieht das so aus: "notes": "<Id>". Der Resource Server verifiziert das dann
 	// "offline_access" bedeutet, das Authentik einen refresh Token mitsendet
-
 	params.Add("scope", "notes offline_access")
+
+	// Der state Parameter ist noch eine Erweiterrung des Authorization Code FLows
 	params.Add("state", state)
 
 	authUrlWithParams := AuthUrl + "?" + params.Encode()
