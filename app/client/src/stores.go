@@ -23,7 +23,7 @@ type CSRFToken struct {
 	Source string
 }
 
-// zur Speicherung von Session-Daten, einschließlich OAuth2-Token, CSRF-Token und Ablaufzeiten für Access- und Session-Tokens.
+// zur Speicherung von Session-Daten: OAuth2-Token, CSRF-Token und Ablaufzeiten für Access- und Session-Tokens.
 type SessionTokenData struct {
 	Token                OAuthToken
 	CSRFToken		     CSRFToken
@@ -50,12 +50,11 @@ func (store *SessionTokenStore) AddToken(token OAuthToken) (string, string) {
     csrfToken := generateCSRFTokenSource()
 
 	entry := SessionTokenData {
-		CSRFToken: 		      CSRFToken {
-			                      Source: csrfToken,
-						      },
+		CSRFToken: 		      CSRFToken {Source: csrfToken,},
 		Token:                token,
-        AccessTokenExpiresAt: time.Now().Add(10 * time.Second),
-		SessionExpiresAt:     time.Now().Add(store.ttl),
+        //sehr kurze anfängliche TTL, um refresh tokens zu demonstrieren
+        AccessTokenExpiresAt: time.Now().Add(10 * time.Second), 
+        SessionExpiresAt:     time.Now().Add(store.ttl),
 	}
     store.tokens[sessionToken] = entry
 
@@ -88,7 +87,7 @@ func (store *SessionTokenStore) RefreshAccess(id string) {
     data := store.tokens[id]
     err := data.refreshAccessTokenIfPossible()
     if err != nil {
-        log.Printf("cannot refresh Token: %s\n", err.Error)
+        log.Printf("cannot refresh Token: %s\n", err.Error())
     }
     store.tokens[id] = data
 }
@@ -117,9 +116,8 @@ func (store *SessionTokenStore) IsExpired(id string) bool {
 func (s *SessionTokenStore) CleanUp() {
     s.mu.Lock()
     defer s.mu.Unlock()
-    now := time.Now()
     for token, data := range s.tokens {
-        if now.Sub(data.SessionExpiresAt) > s.ttl {
+        if time.Now().After(data.SessionExpiresAt) {
             delete(s.tokens, token)
         }
     }

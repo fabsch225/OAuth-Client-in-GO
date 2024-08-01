@@ -21,8 +21,3 @@ manual setup in Authentik UI
 3. Set Up Registration Flow
 4. Set Up custom Scope
 5. Set Up https: Certs in Docker-Compose, Select them for the OAuth Provider, Import it as trusted CA to the GO HTTP Client
-
-Common Attacks
-CSRF
--> only few redirect urls allowed in authentik
--> vefify states on the client

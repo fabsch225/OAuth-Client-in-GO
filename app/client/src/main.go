@@ -48,6 +48,8 @@ var (
 	AuthentikCA      string = "../certs/authentik_default_certificate.crt"
 
 	// Instanz eines SessionTokenStore zum Speichern von Session-Tokens.
+	// Die TTL (Time To Live) im SessionTokenStore sollte entwas kürzer als die
+	// Lebensdauer der AccessTokens sein.
 	Sessions SessionTokenStore = *NewSessionTokenStore()
 
 	// Instanz eines LoginStateStore zum Verwalten von laufenden Authorization Flows
