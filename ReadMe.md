@@ -1,4 +1,7 @@
 # Microservices mit GO Projekt Fabian Schuller
+## Motivation
+
+Dieses Projekt ist eine Beispielhafte implementierung des OAuth Protokolls. Um die Abläufe zu demonstrieren, ist der Client eigens implementiert.
 
 ## Übersicht
 
