@@ -14,7 +14,7 @@ Um das Projekt zu starten, muss man die beiden Docker Compose dateien ausführen
 ### Bibliotheken und andere fremde Inhalte
 Abgesehen von einer JWT Bibliothek (github.com/golang-jwt/jwt/v4) wird nur die Standardbibliothek benutzt. 
 Das Docker-Compose Setup ist im wesentlichen von der Authentik Website übernommen.
-Der Client und der Resource Server sind vollständig selbst implenentiert.
+Der Client und der Resource Server sind vollständig selbst implementiert.
 
 ## OAuth Architektur
 
